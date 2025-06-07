@@ -1,74 +1,70 @@
 import './style.css'
 import * as THREE from "three"
 
-const canvas = document.querySelector("#render") as HTMLCanvasElement
-const renderer = new THREE.WebGLRenderer({ antialias: true, canvas })
 
-const fov = 75;
-const aspect = 2;  // the canvas default
-const near = 0.1;
-const far = 5;
-const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-camera.position.z = 2
-
-
-const scene = new THREE.Scene()
-// Box
-const boxWidth = 1;
-const boxHeight = 1;
-const boxDepth = 1;
-
-const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth)
-
-let cubes = [
-  createCube(geometry, new THREE.Color(0x44aa88), 0),
-  createCube(geometry, new THREE.Color(0x8844aa), 2),
-  createCube(geometry, new THREE.Color(0xaa8844), -2)
-]
-function createCube(geometry: THREE.BufferGeometry, color: THREE.Color, x: number) {
-  const mat = new THREE.MeshPhongMaterial({ color })
-  let mesh = new THREE.Mesh(geometry, mat)
-  mesh.position.x = x
-  scene.add(mesh)
-  return mesh
-}
-
-const color = 0xFFFFFF;
-const intensity = 3;
-const light = new THREE.DirectionalLight(color, intensity);
-light.position.set(-1, 2, 4);
-scene.add(light);
-
-// renderer.setPixelRatio(window.devicePixelRatio);
-function updateCanvas() {
-  const pixelRatio = window.devicePixelRatio;
-  const width = Math.floor(canvas.clientWidth * pixelRatio);
-  const height = Math.floor(canvas.clientHeight * pixelRatio);
-  if (canvas.width == width && canvas.height == height) {
-    return
-  }
-  console.log(renderer.domElement)
-  renderer.setSize(width, height, false)
-  camera.aspect = width / height
-  camera.updateProjectionMatrix()
-}
-function render(time: number) {
-  time *= 0.001;  // convert time to seconds
-
-  updateCanvas()
-  for (let index = 0; index < cubes.length; index++) {
-    const element = cubes[index];
-    const speed = 1 + index * .1;
-    const rot = time * speed;
-    element.rotation.x = rot
-    element.rotation.y = rot;
+class App {
+  public canvas: HTMLCanvasElement
+  public camera: any
+  public currentScene: any
+  private renderer: THREE.WebGLRenderer
+  constructor(root: HTMLElement) {
+    this.canvas = root.querySelector("#render") as HTMLCanvasElement
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, canvas: this.canvas })
   }
 
-  renderer.render(scene, camera);
+  start() {
 
-  requestAnimationFrame(render);
+    // Create camera
+    const fov = 75;
+    const aspect = this.canvas.width / this.canvas.height;
+    const near = 0.1;
+    const far = 5;
+
+    this.camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+    this.camera.position.z = 2
+    this.updateLoop()
+  }
+
+  updateCanvasSize() {
+
+    const pixelRatio = window.devicePixelRatio;
+    const width = Math.floor(this.canvas.clientWidth * pixelRatio);
+    const height = Math.floor(this.canvas.clientHeight * pixelRatio);
+    if (this.canvas.width == width && this.canvas.height == height) {
+      return
+    }
+    this.renderer.setSize(width, height, false)
+    this.camera.aspect = width / height
+    this.camera.updateProjectionMatrix()
+  }
+
+  updateLoop() {
+    const loop = (time: number) => {
+      if (this.currentScene) {
+        time *= 0.001;  // convert time to seconds
+        this.updateCanvasSize()
+        this.renderer.render(this.currentScene, this.camera);
+      }
+      requestAnimationFrame(loop)
+    }
+    requestAnimationFrame(loop);
+  }
 }
+// const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth)
 
+// let cubes = [
+//   createCube(geometry, new THREE.Color(0x44aa88), 0),
+//   createCube(geometry, new THREE.Color(0x8844aa), 2),
+//   createCube(geometry, new THREE.Color(0xaa8844), -2)
+// ]
+// function createCube(geometry: THREE.BufferGeometry, color: THREE.Color, x: number) {
+//   const mat = new THREE.MeshPhongMaterial({ color })
+//   let mesh = new THREE.Mesh(geometry, mat)
+//   mesh.position.x = x
+//   scene.add(mesh)
+//   return mesh
+// }
 
-// Main Loop
-requestAnimationFrame(render);
+const root = document.getElementById("#app") as HTMLElement
+const app = new App(root)
+app.start()

@@ -1,4 +1,4 @@
-import { LoadingManager, Object3D } from "three";
+import { LoadingManager} from "three";
 import { FBXLoader, GLTFLoader } from "three/examples/jsm/Addons.js";
 
 export class AssetDatabase {

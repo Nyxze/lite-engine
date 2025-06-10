@@ -2,7 +2,7 @@
 import { OrthographicCamera } from "three";
 import { Clock, Mesh, Object3D, PerspectiveCamera, Scene, WebGLRenderer } from "three"
 import { Component } from "./component";
-import { AssetDatabase } from "./asset_db";
+import { AssetDatabase } from "./assets_db";
 import { PerfStats } from "../components/stats";
 export enum LifeCycleEvent {
     Start = "start",

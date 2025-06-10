@@ -1,5 +1,9 @@
+
 import { OrthographicCamera } from "three";
 import { Clock, Mesh, Object3D, PerspectiveCamera, Scene, WebGLRenderer } from "three"
+import { Component } from "./component";
+import { AssetDatabase } from "./asset_db";
+import { PerfStats } from "../components/stats";
 export enum LifeCycleEvent {
     Start = "start",
     Update = "update",
@@ -8,12 +12,17 @@ export enum LifeCycleEvent {
 
 export type LifeCycleCallback = (ctx: Context) => void;
 export type Camera = PerspectiveCamera | OrthographicCamera
+export type ContextArgs = {
+    displayStats: boolean,
+    domElement: HTMLElement
+}
 export class Context {
     static Current: Context;
     app: any;
     renderer: WebGLRenderer
     mainCamera: Camera;
     scene: Scene;
+    assetDb: AssetDatabase
 
     private clock: Clock;
     private callbacks: Map<LifeCycleEvent, Set<LifeCycleCallback>> = new Map([
@@ -22,9 +31,8 @@ export class Context {
         [LifeCycleEvent.Destroy, new Set()],
     ]);
 
-    get deltaTime() {
-        return this.clock.getDelta();
-    }
+    deltaTime: number
+
 
     defaultCamera(): Camera {
         return new PerspectiveCamera(
@@ -34,23 +42,48 @@ export class Context {
             1000
         );
     }
-    constructor(domElement: HTMLElement) {
+    constructor(args: ContextArgs) {
         this.clock = new Clock();
-        this.renderer = new WebGLRenderer({ canvas: domElement })
+        this.renderer = new WebGLRenderer({ canvas: args.domElement })
+        this.assetDb = new AssetDatabase()
         this.scene = new Scene()
         this.mainCamera = this.defaultCamera()
+
+        if (args.displayStats) {
+            this.addComponent(new PerfStats())
+        }
         this.renderer.setAnimationLoop(() => this.update())
     }
 
     update() {
+        // Snapshot time
+        this.deltaTime = this.clock.getDelta();
+        // clamp delta time because if tab is not active clock.getDelta can get pretty big
+        this.deltaTime = Math.min(.1, this.deltaTime);
         this._onPreRender()
         this.renderer.render(this.scene, this.mainCamera)
         this.invoke(LifeCycleEvent.Update)
     }
-
     // TODO: Improve
     setCamera(camera) {
         this.mainCamera = camera
+    }
+    addComponent(cp: Component) {
+        cp.ctx = this
+        // Register lifecycle callbacks
+        if (cp.start) {
+            this.registerCallback(cp.start.bind(cp), LifeCycleEvent.Start);
+            cp.start();
+        }
+
+        if (cp.update) {
+            const update = cp.update.bind(cp)
+            this.registerCallback((_) => update(this.deltaTime), LifeCycleEvent.Update);
+        }
+
+        if (cp.dispose) {
+            this.registerCallback(cp.dispose.bind(cp), LifeCycleEvent.Destroy);
+        }
     }
 
     #cleanScene() {

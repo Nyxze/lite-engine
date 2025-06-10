@@ -43,9 +43,11 @@ export class Context {
     }
 
     update() {
+        this._onPreRender()
         this.renderer.render(this.scene, this.mainCamera)
         this.invoke(LifeCycleEvent.Update)
     }
+
     // TODO: Improve
     setCamera(camera) {
         this.mainCamera = camera
@@ -137,4 +139,19 @@ export class Context {
     removeCallback(cb: LifeCycleCallback, type: LifeCycleEvent) {
         this.callbacks.get(type)?.delete(cb);
     }
+    _onPreRender() {
+
+        const canvas = this.renderer.domElement
+        const width = canvas.clientWidth
+        const height = canvas.clientHeight
+        if (width == canvas.width && canvas.height == height) {
+            return
+        }
+        this.renderer.setSize(width, height, false)
+        if (this.mainCamera instanceof PerspectiveCamera) {
+            this.mainCamera.aspect = width / height
+            this.mainCamera.updateProjectionMatrix()
+        }
+    }
+
 }

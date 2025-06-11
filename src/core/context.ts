@@ -4,13 +4,7 @@ import { Clock, Mesh, Object3D, PerspectiveCamera, Scene, WebGLRenderer } from "
 import { Component } from "./component";
 import { AssetDatabase } from "./assets_db";
 import { PerfStats } from "../components/stats";
-export enum LifeCycleEvent {
-    Start = "start",
-    Update = "update",
-    Destroy = "Destroy"
-}
-
-export type LifeCycleCallback = (ctx: Context) => void;
+import { LifeCycleEvent, type LifeCycleCallback } from "./life_cycle_event";
 export type Camera = PerspectiveCamera | OrthographicCamera
 export type ContextArgs = {
     displayStats: boolean,
@@ -23,15 +17,13 @@ export class Context {
     mainCamera: Camera;
     scene: Scene;
     assetDb: AssetDatabase
-
+    private deltaTime: number = 0
     private clock: Clock;
     private callbacks: Map<LifeCycleEvent, Set<LifeCycleCallback>> = new Map([
         [LifeCycleEvent.Start, new Set()],
         [LifeCycleEvent.Update, new Set()],
         [LifeCycleEvent.Destroy, new Set()],
     ]);
-
-    deltaTime: number
 
 
     defaultCamera(): Camera {
@@ -64,7 +56,8 @@ export class Context {
         this.renderer.render(this.scene, this.mainCamera)
         this.invoke(LifeCycleEvent.Update)
     }
-    // TODO: Improve
+
+    // TODO: Improve typing
     setCamera(camera) {
         this.mainCamera = camera
     }

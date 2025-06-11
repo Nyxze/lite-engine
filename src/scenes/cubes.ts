@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { Component } from '../SceneManager';
+import { Component } from '../core/scene_router';
 import {Context} from "@needle-tools/engine"
 export class CubeScene extends Component {
 

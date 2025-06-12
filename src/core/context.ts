@@ -1,15 +1,17 @@
-
 import { OrthographicCamera } from "three";
 import { Clock, Mesh, Object3D, PerspectiveCamera, Scene, WebGLRenderer } from "three"
 import { Component } from "./component";
 import { AssetDatabase } from "./assets_db";
 import { PerfStats } from "../components/stats";
 import { LifeCycleEvent, type LifeCycleCallback } from "./life_cycle_event";
+import { EventBus } from "./event_bus";
+
 export type Camera = PerspectiveCamera | OrthographicCamera
 export type ContextArgs = {
     displayStats: boolean,
     domElement: HTMLElement
 }
+
 export class Context {
     static Current: Context;
     app: any;
@@ -57,9 +59,9 @@ export class Context {
         this.invoke(LifeCycleEvent.Update)
     }
 
-    // TODO: Improve typing
-    setCamera(camera) {
-        this.mainCamera = camera
+    // Update camera with proper typing
+    setCamera(camera: Camera) {
+        this.mainCamera = camera;
     }
     addComponent(cp: Component) {
         cp.ctx = this

@@ -6,9 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "devDependencies": {
+    "@jest/globals": "^29.7.0",
+    "@types/jest": "^29.5.12",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
     "typescript": "~5.8.3",
     "vite": "^6.3.5"
   },
@@ -16,5 +22,21 @@
     "@needle-tools/engine": "^4.5.6-next.4e42447",
     "@types/three": "^0.177.0",
     "three": "^0.177.0"
-  }
+  },
+  "description": "A lightweight, modular 3D web engine built with TypeScript, focusing on efficient scene management and component-based architecture.",
+  "main": "jest.config.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nyxze/scene-router.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Nyxze/scene-router/issues"
+  },
+  "homepage": "https://github.com/Nyxze/scene-router#readme"
 }

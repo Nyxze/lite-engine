@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Context } from '../core/context';
 import { Component } from '../core/component';
+import { ScoreBoardComponent } from './score_board';
 
 /******************************
  * Simple "Cube-Dodger" mini-game
@@ -86,6 +87,8 @@ class ObstacleComponent extends Component {
     this.mesh.position.z += this.speed * dt;
     if (this.mesh.position.z > 6) {
       this.manager.unregisterObstacle(this);
+      // Remove self from context when off screen
+      this.ctx.removeComponent(this);
     }
   }
 
@@ -127,10 +130,8 @@ class ObstacleSpawnerComponent extends Component {
 class GameManagerComponent extends Component {
   private obstacles = new Set<ObstacleComponent>();
   private player!: PlayerComponent;
-  private score = 0;
-  private best = 0;
   private gameOver = false;
-  private overlay!: HTMLDivElement;
+  private scoreboard!: ScoreBoardComponent;
 
   start() {
     // Simple lighting
@@ -144,23 +145,13 @@ class GameManagerComponent extends Component {
     // Spawner
     this.ctx.addComponent(ObstacleSpawnerComponent, this);
 
-    // Score overlay
-    this.overlay = document.createElement('div');
-    Object.assign(this.overlay.style, {
-      position: 'fixed',
-      top: '10px',
-      left: '10px',
-      color: '#fff',
-      fontFamily: 'monospace',
-      fontSize: '24px'
-    });
-    document.body.appendChild(this.overlay);
+    // ScoreBoard
+    this.scoreboard = this.ctx.addComponent(ScoreBoardComponent);
   }
 
   update(dt: number) {
     if (!this.gameOver) {
-      this.score += dt;
-      this.overlay.textContent = `Score: ${Math.floor(this.score)}  Best: ${Math.floor(this.best)}`;
+      this.scoreboard.increment(dt);
       // Collision detection
       for (const obs of this.obstacles) {
         if (this.intersects(this.player.getMesh(), obs.getMesh())) {
@@ -178,8 +169,7 @@ class GameManagerComponent extends Component {
 
   private triggerGameOver() {
     this.gameOver = true;
-    this.best = Math.max(this.best, this.score);
-    this.overlay.textContent += '   GAME OVER – press SPACE to restart';
+    this.scoreboard.gameOver();
     this.player.isEnabled = false;
     // Disable existing obstacles
     this.obstacles.forEach(o => o.isEnabled = false);
@@ -193,8 +183,8 @@ class GameManagerComponent extends Component {
     this.player.isEnabled = true;
     this.player.getMesh().position.set(0, 0.5, 5);
     // Reset state
-    this.score = 0;
     this.gameOver = false;
+    this.scoreboard.reset();
   }
 
   /* ---------- helpers ---------- */
@@ -203,14 +193,16 @@ class GameManagerComponent extends Component {
   registerObstacle(o: ObstacleComponent) { this.obstacles.add(o); }
   unregisterObstacle(o: ObstacleComponent) { this.obstacles.delete(o); }
 
+  private tmpBoxA = new THREE.Box3();
+  private tmpBoxB = new THREE.Box3();
   private intersects(a: THREE.Mesh, b: THREE.Mesh) {
-    const ax = a.position.x, az = a.position.z;
-    const bx = b.position.x, bz = b.position.z;
-    return Math.abs(ax - bx) < 1.25 && Math.abs(az - bz) < 1.25;
+    this.tmpBoxA.setFromObject(a);
+    this.tmpBoxB.setFromObject(b);
+    return this.tmpBoxA.intersectsBox(this.tmpBoxB);
   }
 
   dispose() {
-    document.body.removeChild(this.overlay);
+    // scoreboard will dispose itself
   }
 }
 
@@ -232,10 +224,3 @@ export function startCubeDodger() {
 
   ctx.addComponent(new GameManagerComponent());
 }
-
-// If someone runs this file directly via Vite dev server (like /src/example/cube_dodger.ts)
-// auto-start so the sample works without extra glue.
-if ((import.meta as any)?.hot || (typeof window !== 'undefined' && document.readyState !== undefined)) {
-  // Delay until DOM ready
-  window.addEventListener('load', () => startCubeDodger());
-} 

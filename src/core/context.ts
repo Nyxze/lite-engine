@@ -226,15 +226,33 @@ export class Context {
 
     /**
      * Adds a component to the context.
-     * The component will be initialized on the next frame.
+     * Accepts either an already-constructed instance or a Component class plus constructor arguments.
+     * Returns the instance so you can chain or keep a reference.
+     *
+     * Examples:
+     *   // old verbose style
+     *   ctx.addComponent(new FooComponent());
+     *
+     *   // new ergonomic style (equivalent)
+     *   const foo = ctx.addComponent(FooComponent, arg1, arg2);
      */
-    addComponent(component: Component) {
+    addComponent<T extends Component>(component: T): T;
+    addComponent<T extends Component>(
+        ComponentClass: { new (...args: any[]): T },
+        ...args: any[]
+    ): T;
+    addComponent(arg: any, ...args: any[]) {
+        // Determine whether we got a constructor or an instance
+        const component: Component =
+            typeof arg === 'function' ? new arg(...args) : arg;
+
         if (this.activeComponents.has(component) || this.pendingStart.has(component)) {
             throw new Error("Component already added to context");
         }
 
         component.ctx = this;
         this.pendingStart.add(component);
+        return component;
     }
 
     /**

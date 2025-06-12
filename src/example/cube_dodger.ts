@@ -117,7 +117,7 @@ class ObstacleSpawnerComponent extends Component {
     this.elapsed += dt;
     if (this.elapsed >= this.interval) {
       this.elapsed = 0;
-      this.ctx.addComponent(new ObstacleComponent(this.manager));
+      this.ctx.addComponent(ObstacleComponent, this.manager);
     }
   }
 }
@@ -140,11 +140,10 @@ class GameManagerComponent extends Component {
     this.scene.add(light);
 
     // Player
-    this.player = new PlayerComponent();
-    this.ctx.addComponent(this.player);
+    this.player = this.ctx.addComponent(PlayerComponent);
 
     // Spawner
-    this.ctx.addComponent(new ObstacleSpawnerComponent(this));
+    this.ctx.addComponent(ObstacleSpawnerComponent, this);
 
     // Score overlay
     this.overlay = document.createElement('div');

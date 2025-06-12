@@ -6,28 +6,72 @@ import { PerfStats } from "../components/stats";
 import { LifeCycleEvent, type LifeCycleCallback } from "./life_cycle_event";
 import { EventBus } from "./event_bus";
 
+/** Represents either a perspective or orthographic camera */
 export type Camera = PerspectiveCamera | OrthographicCamera
+
+/** Configuration options for initializing a Context */
 export type ContextArgs = {
+    /** Whether to display performance statistics */
     displayStats: boolean,
+    /** The DOM element where the renderer will be attached */
     domElement: HTMLElement
 }
 
+/**
+ * Core context class that manages the 3D scene, rendering, and component lifecycle.
+ * Provides centralized control over the scene graph, rendering pipeline, and component system.
+ * 
+ * @example
+ * ```ts
+ * const canvas = document.querySelector('canvas');
+ * const context = new Context({ 
+ *   displayStats: true,
+ *   domElement: canvas 
+ * });
+ * 
+ * // Add components
+ * context.addComponent(new MyCustomComponent());
+ * 
+ * // Set custom camera
+ * context.setCamera(new PerspectiveCamera(75, window.innerWidth / window.innerHeight));
+ * ```
+ */
 export class Context {
+    /** Reference to the currently active context */
     static Current: Context;
+    
+    /** Reference to the main application */
     app: any;
+    
+    /** The WebGL renderer instance */
     renderer: WebGLRenderer
+    
+    /** The active camera used for rendering */
     mainCamera: Camera;
+    
+    /** The main scene graph */
     scene: Scene;
+    
+    /** Asset management system */
     assetDb: AssetDatabase
+    
+    /** Time elapsed since last frame in seconds */
     private deltaTime: number = 0
+    
+    /** Internal clock for tracking time */
     private clock: Clock;
+    
+    /** Map of lifecycle callbacks organized by event type */
     private callbacks: Map<LifeCycleEvent, Set<LifeCycleCallback>> = new Map([
         [LifeCycleEvent.Start, new Set()],
         [LifeCycleEvent.Update, new Set()],
         [LifeCycleEvent.Destroy, new Set()],
     ]);
 
-
+    /**
+     * Creates a default perspective camera with standard settings.
+     * @returns {Camera} A new perspective camera with 75° FOV and standard near/far planes
+     */
     defaultCamera(): Camera {
         return new PerspectiveCamera(
             75,
@@ -36,6 +80,11 @@ export class Context {
             1000
         );
     }
+
+    /**
+     * Creates a new Context instance.
+     * @param {ContextArgs} args - Configuration options for the context
+     */
     constructor(args: ContextArgs) {
         this.clock = new Clock();
         this.renderer = new WebGLRenderer({ canvas: args.domElement })
@@ -49,6 +98,10 @@ export class Context {
         this.renderer.setAnimationLoop(() => this.update())
     }
 
+    /**
+     * Main update loop called every frame.
+     * Handles time management, pre-render operations, and component updates.
+     */
     update() {
         // Snapshot time
         this.deltaTime = this.clock.getDelta();
@@ -59,10 +112,18 @@ export class Context {
         this.invoke(LifeCycleEvent.Update)
     }
 
-    // Update camera with proper typing
+    /**
+     * Sets the active camera used for rendering.
+     * @param {Camera} camera - The camera to use for rendering
+     */
     setCamera(camera: Camera) {
         this.mainCamera = camera;
     }
+
+    /**
+     * Adds a component to the context and sets up its lifecycle hooks.
+     * @param {Component} cp - The component to add
+     */
     addComponent(cp: Component) {
         cp.ctx = this
         // Register lifecycle callbacks
@@ -81,6 +142,11 @@ export class Context {
         }
     }
 
+    /**
+     * Cleans up the scene by disposing of geometries and materials.
+     * This helps prevent memory leaks by properly releasing WebGL resources.
+     * @private
+     */
     #cleanScene() {
         let scene = this.scene
         let disposedGeometries = 0;
@@ -140,14 +206,22 @@ export class Context {
             console.log("✅ Scene cleaned up with no leftover resources.");
         }
     }
+
+    /**
+     * Clears the context, disposing of all components and cleaning up the scene.
+     * This should be called when you want to reset the context or clean up before destruction.
+     */
     clear() {
         this.invoke(LifeCycleEvent.Destroy)
         this.callbacks.clear();
         this.#cleanScene()
     }
 
+    /**
+     * Invokes all callbacks registered for a specific lifecycle event.
+     * @param {LifeCycleEvent} evt - The lifecycle event to trigger
+     */
     invoke(evt: LifeCycleEvent) {
-        // console.log("Dispatching Event" + evt)
         const funcs = this.callbacks.get(evt)
         if (!funcs) {
             return
@@ -156,6 +230,12 @@ export class Context {
             fn(this)
         }
     }
+
+    /**
+     * Registers a callback for a specific lifecycle event.
+     * @param {LifeCycleCallback} cb - The callback function to register
+     * @param {LifeCycleEvent} type - The lifecycle event type
+     */
     registerCallback(cb: LifeCycleCallback, type: LifeCycleEvent) {
         const funcs = this.callbacks.get(type)
         if (!funcs) {
@@ -164,11 +244,20 @@ export class Context {
         this.callbacks.get(type)?.add(cb);
     }
 
+    /**
+     * Removes a callback from a specific lifecycle event.
+     * @param {LifeCycleCallback} cb - The callback function to remove
+     * @param {LifeCycleEvent} type - The lifecycle event type
+     */
     removeCallback(cb: LifeCycleCallback, type: LifeCycleEvent) {
         this.callbacks.get(type)?.delete(cb);
     }
-    _onPreRender() {
 
+    /**
+     * Handles pre-render operations including canvas resize and camera aspect ratio updates.
+     * @private
+     */
+    _onPreRender() {
         const canvas = this.renderer.domElement
         const width = canvas.clientWidth
         const height = canvas.clientHeight
@@ -181,5 +270,4 @@ export class Context {
             this.mainCamera.updateProjectionMatrix()
         }
     }
-
 }

@@ -22,7 +22,7 @@ class TestComponent extends Component {
         this.startCalled = true;
     }
 
-    update(dt: number) {
+    update(_dt: number) {
         this.updateCalled = true;
         this.updateCount++;
     }
@@ -53,7 +53,7 @@ class AsyncTestComponent extends Component {
         }
     }
 
-    update(dt: number) {
+    update(_dt: number) {
         this.updateCalled = true;
         this.updateCount++;
     }
@@ -73,7 +73,7 @@ class FailingAsyncComponent extends Component {
         return Promise.reject(new Error('Async start failed'));
     }
 
-    update(dt: number) {
+    update(_dt: number) {
         this.updateCalled = true;
     }
 
@@ -103,7 +103,7 @@ class ComponentWithObject3D extends Component {
 
 class ComponentWithoutStart extends Component {
     updateCalled = false;
-    update(dt: number) {
+    update(_dt: number) {
         this.updateCalled = true;
     }
 }
@@ -123,7 +123,7 @@ class ComponentWithStartError extends Component {
 
 class ComponentWithUpdateError extends Component {
     start() {}
-    update() {
+    update(_dt: number) {
         throw new Error('Update failed');
     }
 }
@@ -136,15 +136,15 @@ class ComponentWithDisposeError extends Component {
 
 class ComponentWithDeltaTime extends Component {
     deltaTimes: number[] = [];
-    update(dt: number) {
-        this.deltaTimes.push(dt);
+    update(_dt: number) {
+        this.deltaTimes.push(_dt);
     }
 }
 
 class ComponentWithMaxDeltaTime extends Component {
     maxDeltaTime = 0;
-    update(dt: number) {
-        this.maxDeltaTime = Math.max(this.maxDeltaTime, dt);
+    update(_dt: number) {
+        this.maxDeltaTime = Math.max(this.maxDeltaTime, _dt);
     }
 }
 
@@ -199,7 +199,7 @@ describe('Context', () => {
         });
 
         it('should handle failing async components', async () => {
-            const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+            const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
             const component = new FailingAsyncComponent();
             context.addComponent(component);
 
@@ -293,7 +293,7 @@ describe('Context', () => {
 
     describe('Error Handling', () => {
         it('should handle errors in start method', () => {
-            const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+            const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
             const component = new ComponentWithStartError();
 
             context.addComponent(component);
@@ -308,7 +308,7 @@ describe('Context', () => {
         });
 
         it('should handle errors in update method', () => {
-            const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+            const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
             const component = new ComponentWithUpdateError();
 
             context.addComponent(component);
@@ -325,7 +325,7 @@ describe('Context', () => {
         });
 
         it('should handle errors in dispose method', () => {
-            const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+            const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
             const component = new ComponentWithDisposeError();
 
             context.addComponent(component);

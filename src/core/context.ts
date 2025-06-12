@@ -4,7 +4,6 @@ import { Component } from "./component";
 import { AssetDatabase } from "./assets_db";
 import { PerfStats } from "../components/stats";
 import { LifeCycleEvent, type LifeCycleCallback } from "./life_cycle_event";
-import { EventBus } from "./event_bus";
 
 /** Represents either a perspective or orthographic camera */
 export type Camera = PerspectiveCamera | OrthographicCamera
@@ -70,8 +69,6 @@ export class Context {
     /** Internal clock for tracking time */
     private clock: Clock;
 
-    /** Event bus for context-wide events */
-    private eventBus: EventBus;
     
     /** Active components in the context */
     private activeComponents: Map<Component, ComponentState> = new Map();
@@ -112,7 +109,6 @@ export class Context {
         this.assetDb = new AssetDatabase()
         this.scene = new Scene()
         this.mainCamera = this.defaultCamera()
-        this.eventBus = new EventBus();
 
         if (args.displayStats) {
             this.addComponent(new PerfStats())

@@ -75,7 +75,7 @@ describe('EventBus', () => {
 
     describe('emit()', () => {
         it('should handle errors in event handlers gracefully', () => {
-            const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+            const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
             const errorHandler = () => { throw new Error('Test error'); };
             const normalHandler = jest.fn();
             

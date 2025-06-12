@@ -18,6 +18,15 @@ export type ContextArgs = {
 }
 
 /**
+ * Represents the initialization state of a component
+ */
+interface ComponentState {
+    component: Component;
+    initializationPromise?: Promise<void>;
+    isInitialized: boolean;
+}
+
+/**
  * Core context class that manages the 3D scene, rendering, and component lifecycle.
  * Provides centralized control over the scene graph, rendering pipeline, and component system.
  * 
@@ -60,6 +69,18 @@ export class Context {
     
     /** Internal clock for tracking time */
     private clock: Clock;
+
+    /** Event bus for context-wide events */
+    private eventBus: EventBus;
+    
+    /** Active components in the context */
+    private activeComponents: Map<Component, ComponentState> = new Map();
+
+    /** Components pending initialization */
+    private pendingStart: Set<Component> = new Set();
+
+    /** Components pending removal */
+    private pendingRemoval: Set<Component> = new Set();
     
     /** Map of lifecycle callbacks organized by event type */
     private callbacks: Map<LifeCycleEvent, Set<LifeCycleCallback>> = new Map([
@@ -91,6 +112,7 @@ export class Context {
         this.assetDb = new AssetDatabase()
         this.scene = new Scene()
         this.mainCamera = this.defaultCamera()
+        this.eventBus = new EventBus();
 
         if (args.displayStats) {
             this.addComponent(new PerfStats())
@@ -100,16 +122,102 @@ export class Context {
 
     /**
      * Main update loop called every frame.
-     * Handles time management, pre-render operations, and component updates.
+     * Processes pending component operations and updates active components.
      */
     update() {
-        // Snapshot time
+        // Process pending operations - this is now async
+        this.processPendingOperations().catch(error => {
+            console.error("Error processing pending operations:", error);
+        });
+
+        // Update time
         this.deltaTime = this.clock.getDelta();
-        // clamp delta time because if tab is not active clock.getDelta can get pretty big
         this.deltaTime = Math.min(.1, this.deltaTime);
-        this._onPreRender()
-        this.renderer.render(this.scene, this.mainCamera)
-        this.invoke(LifeCycleEvent.Update)
+
+        // Pre-render operations
+        this._onPreRender();
+
+        // Update components
+        this.updateComponents();
+
+        // Render
+        this.renderer.render(this.scene, this.mainCamera);
+    }
+
+    /**
+     * Process components pending start or removal
+     */
+    private async processPendingOperations() {
+        // Initialize pending components
+        const startPromises: Promise<void>[] = [];
+
+        for (const component of this.pendingStart) {
+            const state: ComponentState = {
+                component,
+                isInitialized: false
+            };
+
+            if (component.start) {
+                try {
+                    const startResult = component.start();
+                    // Check if start returns a Promise
+                    if (startResult instanceof Promise) {
+                        state.initializationPromise = startResult;
+                        startPromises.push(
+                            startResult
+                                .then(() => {
+                                    state.isInitialized = true;
+                                })
+                                .catch(error => {
+                                    console.error(`Error in async initialization of component:`, error);
+                                    this.pendingRemoval.add(component);
+                                })
+                        );
+                    } else {
+                        // Synchronous start
+                        state.isInitialized = true;
+                    }
+                } catch (error) {
+                    console.error(`Error initializing component:`, error);
+                    this.pendingRemoval.add(component);
+                    continue;
+                }
+            } else {
+                // No start method, consider it initialized
+                state.isInitialized = true;
+            }
+
+            this.activeComponents.set(component, state);
+        }
+        this.pendingStart.clear();
+
+        // Wait for all async initializations to complete
+        if (startPromises.length > 0) {
+            await Promise.all(startPromises);
+        }
+
+        // Remove pending components
+        for (const component of this.pendingRemoval) {
+            this.removeComponentInternal(component);
+        }
+        this.pendingRemoval.clear();
+    }
+
+    /**
+     * Update all active and initialized components
+     */
+    private updateComponents() {
+        for (const [component, state] of this.activeComponents) {
+            // Only update if component is enabled and fully initialized
+            if (component.isEnabled && state.isInitialized && component.update) {
+                try {
+                    component.update(this.deltaTime);
+                } catch (error) {
+                    console.error(`Error updating component:`, error);
+                    component.isEnabled = false;
+                }
+            }
+        }
     }
 
     /**
@@ -121,25 +229,107 @@ export class Context {
     }
 
     /**
-     * Adds a component to the context and sets up its lifecycle hooks.
-     * @param {Component} cp - The component to add
+     * Adds a component to the context.
+     * The component will be initialized on the next frame.
      */
-    addComponent(cp: Component) {
-        cp.ctx = this
-        // Register lifecycle callbacks
-        if (cp.start) {
-            this.registerCallback(cp.start.bind(cp), LifeCycleEvent.Start);
-            cp.start();
+    addComponent(component: Component) {
+        if (this.activeComponents.has(component) || this.pendingStart.has(component)) {
+            throw new Error("Component already added to context");
         }
 
-        if (cp.update) {
-            const update = cp.update.bind(cp)
-            this.registerCallback((_) => update(this.deltaTime), LifeCycleEvent.Update);
+        component.ctx = this;
+        this.pendingStart.add(component);
+    }
+
+    /**
+     * Removes a component from the context.
+     * The component will be disposed of on the next frame.
+     */
+    removeComponent(component: Component) {
+        if (!this.activeComponents.has(component)) {
+            return;
         }
 
-        if (cp.dispose) {
-            this.registerCallback(cp.dispose.bind(cp), LifeCycleEvent.Destroy);
+        this.pendingRemoval.add(component);
+    }
+
+    /**
+     * Internal method to remove and cleanup a component
+     */
+    private removeComponentInternal(component: Component) {
+        if (component.dispose) {
+            try {
+                component.dispose();
+            } catch (error) {
+                console.error(`Error disposing component:`, error);
+            }
         }
+
+        // Remove from active components
+        this.activeComponents.delete(component);
+
+        // Remove any child components
+        for (const child of component.getComponents()) {
+            this.removeComponent(child);
+        }
+    }
+
+    /**
+     * Cleans up the context, disposing of all components and cleaning up the scene.
+     * This should be called when you want to reset the context or clean up before destruction.
+     */
+    clear() {
+        // Dispose all components
+        for (const [component] of this.activeComponents) {
+            this.removeComponent(component);
+        }
+
+        // Process removals immediately
+        this.processPendingOperations().catch(error => {
+            console.error("Error during context clear:", error);
+        });
+
+        // Clear all callbacks
+        this.callbacks.clear();
+
+        // Clean up scene
+        this.#cleanScene();
+    }
+
+    /**
+     * Invokes all callbacks registered for a specific lifecycle event.
+     * @param {LifeCycleEvent} evt - The lifecycle event to trigger
+     */
+    invoke(evt: LifeCycleEvent) {
+        const funcs = this.callbacks.get(evt)
+        if (!funcs) {
+            return
+        }
+        for (const fn of funcs) {
+            fn(this)
+        }
+    }
+
+    /**
+     * Registers a callback for a specific lifecycle event.
+     * @param {LifeCycleCallback} cb - The callback function to register
+     * @param {LifeCycleEvent} type - The lifecycle event type
+     */
+    registerCallback(cb: LifeCycleCallback, type: LifeCycleEvent) {
+        const funcs = this.callbacks.get(type)
+        if (!funcs) {
+            this.callbacks.set(type, new Set())
+        }
+        this.callbacks.get(type)?.add(cb);
+    }
+
+    /**
+     * Removes a callback from a specific lifecycle event.
+     * @param {LifeCycleCallback} cb - The callback function to remove
+     * @param {LifeCycleEvent} type - The lifecycle event type
+     */
+    removeCallback(cb: LifeCycleCallback, type: LifeCycleEvent) {
+        this.callbacks.get(type)?.delete(cb);
     }
 
     /**
@@ -205,52 +395,6 @@ export class Context {
         if (!warned) {
             console.log("✅ Scene cleaned up with no leftover resources.");
         }
-    }
-
-    /**
-     * Clears the context, disposing of all components and cleaning up the scene.
-     * This should be called when you want to reset the context or clean up before destruction.
-     */
-    clear() {
-        this.invoke(LifeCycleEvent.Destroy)
-        this.callbacks.clear();
-        this.#cleanScene()
-    }
-
-    /**
-     * Invokes all callbacks registered for a specific lifecycle event.
-     * @param {LifeCycleEvent} evt - The lifecycle event to trigger
-     */
-    invoke(evt: LifeCycleEvent) {
-        const funcs = this.callbacks.get(evt)
-        if (!funcs) {
-            return
-        }
-        for (const fn of funcs) {
-            fn(this)
-        }
-    }
-
-    /**
-     * Registers a callback for a specific lifecycle event.
-     * @param {LifeCycleCallback} cb - The callback function to register
-     * @param {LifeCycleEvent} type - The lifecycle event type
-     */
-    registerCallback(cb: LifeCycleCallback, type: LifeCycleEvent) {
-        const funcs = this.callbacks.get(type)
-        if (!funcs) {
-            this.callbacks.set(type, new Set())
-        }
-        this.callbacks.get(type)?.add(cb);
-    }
-
-    /**
-     * Removes a callback from a specific lifecycle event.
-     * @param {LifeCycleCallback} cb - The callback function to remove
-     * @param {LifeCycleEvent} type - The lifecycle event type
-     */
-    removeCallback(cb: LifeCycleCallback, type: LifeCycleEvent) {
-        this.callbacks.get(type)?.delete(cb);
     }
 
     /**

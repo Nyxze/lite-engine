@@ -1,7 +1,9 @@
 import { EventDispatcher } from "three"
 import { Component } from "./component"
+import { Context } from "./context"
 
-type RouteHandler = () => Component
+// A function that receives the Context and returns a Component to be added for the route
+export type RouteHandler = (ctx: Context) => Component
 
 interface RouteMap {
     "load": { routeId: string, handler: RouteHandler }
@@ -30,7 +32,7 @@ export class SceneRouter extends EventDispatcher<RouteMap> {
                 return
             }
             if (this.current) {
-                this.dispatchEvent({ type: "unload", routeId: route })
+                this.dispatchEvent({ type: "unload", routeId: this.current })
             }
             this.current = route
             this.dispatchEvent({ type: "load", routeId: route, handler: this.routes[route] });

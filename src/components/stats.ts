@@ -3,7 +3,7 @@ import packageJson from "../../package.json"
 export class PerfStats extends Component {
 
     stats: any = {}
-    statsDiv: HTMLElement
+    statsDiv: HTMLElement | null = null
 
     start(): void {
         this.stats = {
@@ -25,16 +25,17 @@ export class PerfStats extends Component {
             this.stats.frames = 0;
         }
 
-        const info = this.ctx.renderer.info;
-
-        this.statsDiv.textContent =
-            `FPS: ${this.stats.fps}\n` +
-            `Draw Calls: ${info.render.calls}\n` +
-            `Triangles: ${info.render.triangles}\n` +
-            `Lines : ${info.render.lines}\n` +
-            `Points : ${info.render.points}\n` +
-            `Textures : ${info.memory.textures}\n` +
-            `Geometries : ${info.memory.geometries}\n`,
-            `Version: ${packageJson.version}`;
+        if (this.statsDiv) {
+            const info = this.ctx.renderer.info;
+            this.statsDiv.textContent =
+                `FPS: ${this.stats.fps}\n` +
+                `Draw Calls: ${info.render.calls}\n` +
+                `Triangles: ${info.render.triangles}\n` +
+                `Lines : ${info.render.lines}\n` +
+                `Points : ${info.render.points}\n` +
+                `Textures : ${info.memory.textures}\n` +
+                `Geometries : ${info.memory.geometries}\n`,
+                `Version: ${packageJson.version}`;
+        }
     }
 }

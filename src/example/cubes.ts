@@ -1,17 +1,14 @@
 import * as THREE from 'three'
-import { Component } from '../core/scene_router';
-import {Context} from "@needle-tools/engine"
-export class CubeScene extends Component {
+import { Component } from '../core/component'
+import { BoxGeometry, DirectionalLight } from 'three'
+export class CubeGroup extends Component {
 
-    private cubes: any[]
-    private geometry
-    private light
+    private cubes: any[] = []
+    private geometry: BoxGeometry | null = null
+    private light: DirectionalLight | null = null
 
-    constructor() {
-        super()
-
-        const scene = new THREE.Scene()
-        const geometry = new THREE.BoxGeometry(1, 1, 1)
+    start(): void {
+        const geometry = new BoxGeometry(1, 1, 1)
         const cubes = [
             createCube(geometry, new THREE.Color(0x44aa88), 0),
             createCube(geometry, new THREE.Color(0x8844aa), 2),
@@ -19,20 +16,16 @@ export class CubeScene extends Component {
         ]
         const color = 0xFFFFFF;
         const intensity = 3;
-        const light = new THREE.DirectionalLight(color, intensity);
+        const light = new DirectionalLight(color, intensity);
         light.position.set(-1, 2, 4);
 
-        scene.add(light);
-        scene.add(...cubes)
+        this.scene.add(light);
+        this.scene.add(...cubes)
 
         this.geometry = geometry
         this.light = light
         this.cubes = cubes
     }
-
-    start(): void { }
-
-
     update(ts: number): void {
         this.cubes.forEach((cube) => {
             cube.rotation.x = ts
@@ -41,8 +34,8 @@ export class CubeScene extends Component {
     }
 
     dispose(): void {
-        this.geometry.dispose()
-        this.light.dispose()
+        this.geometry?.dispose()
+        this.light?.dispose()
     }
 }
 

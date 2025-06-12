@@ -1,12 +1,5 @@
 import { Object3D, AnimationMixer, AnimationAction } from "three";
 import { Component } from "../core/component";
-import { Behaviour } from "@needle-tools/engine";
-export class Pouet extends Behaviour {
-
-    start(): void {
-        this.gameObject.addComponent
-    }
-}
 export class Character extends Component {
     characterModel: Object3D;
     animationMixer: AnimationMixer;

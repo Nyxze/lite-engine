@@ -86,7 +86,6 @@ class ObstacleComponent extends Component {
     this.mesh.position.z += this.speed * dt;
     if (this.mesh.position.z > 6) {
       this.manager.unregisterObstacle(this);
-      this.ctx.removeComponent(this);
     }
   }
 
@@ -117,7 +116,7 @@ class ObstacleSpawnerComponent extends Component {
     this.elapsed += dt;
     if (this.elapsed >= this.interval) {
       this.elapsed = 0;
-      this.ctx.addComponent(ObstacleComponent, this.manager);
+      this.addComponent(ObstacleComponent, this.manager);
     }
   }
 }

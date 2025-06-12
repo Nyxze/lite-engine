@@ -130,13 +130,10 @@ export abstract class Component {
     /**
      * Add a child component
      */
-    public addComponent(component: Component): void {
-        if (component._parent) {
-            throw new Error("Component already has a parent");
-        }
-        component._parent = this;
-        this._components.add(component);
-        this.ctx.addComponent(component);
+    public addComponent<T extends Component>(component: T): T;
+    public addComponent<T extends Component>(ComponentClass: { new(...args: any[]): T }, ...args: any[]): T;
+    public addComponent(arg: any, ...args: any[]) {
+        this.ctx.addComponent(arg, ...args);
     }
 
     /**
